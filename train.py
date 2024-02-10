@@ -13,7 +13,7 @@ from datasets import Dataset
 from typing import*
 
 import zipfile
-from configurations import measure_time
+from Configuration import measure_time
 import json
 import argparse
 from itertools import chain

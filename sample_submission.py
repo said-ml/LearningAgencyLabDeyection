@@ -1,7 +1,13 @@
+
 from train import predictions
 from zipfile import ZipFile
 import csv
 import json
+
+
+from zipfile import ZipFile
+import csv
+
 
 from tqdm import tqdm as progress
 
@@ -33,9 +39,9 @@ def submission_sample(sample_size=50):
           print(f"the file '{sample_submission_path}' was not found in the zip archive.")
 
 
-
 def submission_predictions():
     preds=predictions()
+
 
 
 
@@ -59,7 +65,5 @@ if __name__=='__main__':
        data = json.load(json_file)
        #data = pd.DataFrame(data)
     print(data)
-
-
-
+    #  ['3', '7', '483', 'I-NAME_STUDENT'
 
