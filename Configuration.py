@@ -1,6 +1,39 @@
 import sys
+import tensorflow as tf
+
+from random  import seed
+from numpy.random import seed as np_seed
+
+from typing import Optional
+from typing import Union
+from typing import Callable
 
 import warnings
+
+
+# define a simple decorator(inner function) to mesure the execution of a function
+def measure_time(func: Callable) -> Callable:
+    '''
+    args: one argument, is the function that we want to decorated(e,g functions that:
+    build the model, train the model, optimize the model, ...etc)
+    '''
+
+    # define the wrapper function that executes the original function(e,g arg func)
+    def wrapper(*args, **kwargs) -> float:
+        '''
+        the wrapper function have the same argument as the object(e,g arg)function
+        '''
+        start_time = time()
+        # call the object function to process and manipulate ...
+        result = func(*args, **kwargs)
+        end_time = time()
+
+        processing_time = end_time - start_time
+        print(f'the processing time is {processing_time:.2f} secondes')
+        return result
+
+    return wrapper
+
 
 class Configurations:
 
@@ -20,6 +53,7 @@ class Configurations:
           seed(self.seed_arg)
           np_seed(self.seed_arg)
 
+      @measure_time
       def Accelerator(self, set_memory:bool=True)->str:
 
           gpus = tf.config.list_physical_devices('GPU')
