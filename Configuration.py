@@ -1,12 +1,14 @@
 import sys
 import tensorflow as tf
-
+import psutil
 from random  import seed
 from numpy.random import seed as np_seed
 
 from typing import Optional
 from typing import Union
 from typing import Callable
+
+from time import time
 
 import warnings
 
@@ -94,6 +96,35 @@ class Configurations:
           if not sys.warnoptions:
              warnings.filterwarnings('ignore')
 
+      @measure_time
+      @staticmethod
+      def check_resources(self, required_memory, required_cpu):
+          """
+          Checks if the available free memory and CPU count are sufficient for the given requirements.
+
+          Args:
+              required_memory: The required amount of free memory in MB.
+              required_cpu: The required number of available CPU cores.
+
+          Raises:
+              MemoryError: If the available free memory is less than required.
+              ValueError: If the available CPU count is less than required.
+          """
+
+          available_memory = psutil.virtual_memory().free / (1024 * 1024)  # Convert to MB
+          available_cpu = psutil.cpu_count()
+
+          print('the available free memory :', available_memory)
+          print('the available CPU count :', available_cpu )
+
+          if self.Accelerator=="CPU":
+             if available_memory < required_memory:
+                  raise MemoryError(
+                          f"Insufficient free memory. Available: {available_memory:.2f} MB, Required: {required_memory} MB")
+
+          elif available_cpu < required_cpu:
+              raise ValueError(f"Insufficient CPU cores. Available: {available_cpu}, Required: {required_cpu}")
+
 
 
 if __name__ == '__main__':
@@ -101,3 +132,6 @@ if __name__ == '__main__':
     CFG.seed_all()
     acce=CFG.Accelerator(set_memory=True)
     print(acce)
+    required_memory = 1024  # 1 GB
+    required_cpu = 4
+    print(CFG.check_resources(required_memory, required_cpu))
