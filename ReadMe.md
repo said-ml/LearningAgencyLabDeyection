@@ -28,5 +28,10 @@ You can install the command-line tool using pip:
 ```bash
 pip install package_name
 ```
+if you work in a cell notebook (e,g jupyter notebook, Jupyter Lab, google colab...) add ! mark to above command:
+
+```bash
+! pip install package_name
+```
 
 ![image for ReadMe](https://www.dreamstime.com/stock-photography-student-writing-school-desk-isolated-white-background-image36222372)
