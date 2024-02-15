@@ -27,6 +27,7 @@ You can install the command-line tool using pip:
 
 ```bash
 pip install package_name
+```
 
-
-
+add images:
+[Pictures](..%2F..%2FPictures)
