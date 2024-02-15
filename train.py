@@ -3,6 +3,23 @@ import pandas as pd
 from time import time
 from zipfile import ZipFile
 from scipy.special import softmax
+from itertools import chain
+from functools import partial
+
+from datasets import Dataset
+from  datasets import features
+
+
+try:
+    from seqeval.metrics import recall_score as recall
+    from seqeval.metrics import precision_score as precision
+    from seqeval.metrics import f1_score as f1
+
+except ModuleNotFoundError:
+    from sklearn.metrics import recall_score as recall
+    from sklearn.metrics import precision_score as precision
+    from sklearn.metrics import f1_score as f1
+
 
 import csv
 import numba
@@ -28,12 +45,17 @@ from transformers import DataCollatorForTokenClassification as DataCollator
 #from datasets import Dataset
 import numpy as np
 
+
+# set directory
+output_dir='output'
+TRAINING_MAX_LENGTH = 1024
+
 #getting the data path
 zip_file_path=r'c:/users/lg/downloads/compressed/pii-detection-removal-from-educational-data.zip' # change it to fit your path
 json_file='train.json'
 test_path='test.json'
-#getting the paths of config, model.weights metadata...etc of the model pretrainined model DeBERTaV3
 
+#getting the paths of config, model.weights metadata...etc of the model pretrainined model DeBERTaV3
 config_path=r'C:\Users\LG\Downloads\config.json'
 model_weights_path=r'C:\Users\LG\Downloads\model.weights.h5'
 metadata_path=r'C:\Users\LG\Downloads\metadata.json'
@@ -116,21 +138,126 @@ def tokenize(example, tokenizer, label2id, max_length):
 
     return {**tokenized, "labels": token_labels, "length": length}
 
+tokenizer = tokenizer.from_pretrained(TRAINING_MODEL_PATH)
+
+all_labels = sorted(list(set(chain(*[x["labels"] for x in data]))))
+label2id = {l: i for i,l in enumerate(all_labels)}
+id2label = {v:k for k,v in label2id.items()}
+
+target = [
+    'B-EMAIL', 'B-ID_NUM', 'B-NAME_STUDENT', 'B-PHONE_NUM',
+    'B-STREET_ADDRESS', 'B-URL_PERSONAL', 'B-USERNAME', 'I-ID_NUM',
+    'I-NAME_STUDENT', 'I-PHONE_NUM', 'I-STREET_ADDRESS', 'I-URL_PERSONAL'
+]
+
+
+ds = Dataset.from_dict({
+    "full_text": [x["full_text"] for x in data],
+    "document": [str(x["document"]) for x in data],
+    "tokens": [x["tokens"] for x in data],
+    "trailing_whitespace": [x["trailing_whitespace"] for x in data],
+    "provided_labels": [x["labels"] for x in data],
+})
+ds = ds.map(tokenize, fn_kwargs={"tokenizer": tokenizer, "label2id": label2id, "max_length": TRAINING_MAX_LENGTH}, num_proc=3)
+
+####################-----------------------#################
+x=ds[0]
+for t, l in zip(x['tokens'], x['provided_labels'] ):
+    if l!=0:
+        print((t, l))
+    print("*"*10)
+for t, l in zip(tokenizer.convert_ids_to_tokens(x['input_ids']), x['labels']):
+    if id2label[1]!='0':
+        print(t, id2label[1])
+
+# Model training:
+class MoelTraining:
+      def __init__(self, model, tokenizer)->None:
+          self.model=model
+          self.tokenizer=tokenizer
+          self.DataCollator=DataCollator
+
+
+      # compute the model performance the metric
+      def compute_metric(self, p, all_labels):
+          predictions, labels=p
+          predictions=np.argmax(predictions, axis=2)
+
+          # Remove and ignore index (special tokens)
+          true_predictions=[
+              [all_labels[p] for (p, l) in zip(predictions, label) if l!=-100]
+              for predictions, label in zip(predictions, labels)
+          ]
+          true_labels = [
+              [all_labels[l] for (p, l) in zip(predictions, label) if l != -100]
+              for predictions, label in zip(predictions, labels)
+          ]
+
+          recall=recall(true_labels, true_predictions)
+          precision=precision(true_labels, true_predictions)
+          f1_score=(1+5*5)*recall*precision/(5*5*precision+recall)
+
+          results={
+              'recall':recall,
+              'precision':precision,
+              'f1_score':f1_score
+          }
+
+          return results
+
+model=model.from_pretrained(model_weights_path,
+                            num_labels=len(all_labels),
+                            id2label=id2label,
+                            label2id=label2id,
+                            ignore_mismatch_sizes=True,
+                            )
+
+collarator=DataCollator(tokenizer, pad_to_multiple_of=16)
+
+# I actually chose to not use any validation set. This is only for the model I use for submission.
+args = TrainingArguments(
+    output_dir=OUTPUT_DIR,
+    fp16=True,
+    learning_rate=2e-5,
+    num_train_epochs=3,
+    per_device_train_batch_size=4,
+    gradient_accumulation_steps=2,
+    report_to="none",
+    evaluation_strategy="no",
+    do_eval=False,
+    save_total_limit=1,
+    logging_steps=20,
+    lr_scheduler_type='cosine',
+    metric_for_best_model="f1",
+    greater_is_better=True,
+    warmup_ratio=0.1,
+    weight_decay=0.01
+)
+
+trainer = Trainer(
+    model=model,
+    args=args,
+    train_dataset=ds,
+    data_collator=collator,
+    tokenizer=tokenizer,
+    compute_metrics=partial(compute_metrics, all_labels=all_labels),
+)
+
 
 def predictions():
         probs = []
-        for model_path in ['/kaggle/input/pii-data-detection-models/deberta3base_1024']:
-            tokenizer = AutoTokenizer.from_pretrained(model_path)
-            model = AutoModelForTokenClassification.from_pretrained(model_path)
-            data_collator = DataCollatorForTokenClassification(tokenizer, pad_to_multiple_of=16)
-            training_args = TrainingArguments(output_dir=CFG.infer_dir,
+        for model_path in [model_weights_path]:
+            tokenizer =  tokenizer.from_pretrained(model_path)
+            model = model.from_pretrained(model_path)
+            data_collator = DataCollator(tokenizer, pad_to_multiple_of=16)
+            training_args = TrainingArguments(output_dir=output_dir,
                                               per_device_eval_batch_size=1,
                                               report_to="none")
             trainer = Trainer(model=model,
                               args=training_args,
                               data_collator=data_collator,
                               tokenizer=tokenizer)
-            test_tokenizer = TestTokenizer(tokenizer)
+            test_tokenizer = tokenizer(tokenizer)
             tokenized_ds = ds.map(lambda example: test_tokenizer.tokenize(example), num_proc=CFG.num_proc)
 
             # Apply `softmax` to convert into a float (0~1) that sum up to a total of 1
@@ -177,7 +304,9 @@ def submission_csv(predictions):
 
 
 
-
+#############-----------------####################
+trainer.save_model('debertavBbase_1024')
+tokenizer.save_model('debertavBbase_1024')
 
 if __name__=="__main__":
     #print(data.head())
