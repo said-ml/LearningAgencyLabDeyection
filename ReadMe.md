@@ -16,6 +16,17 @@ class Trainer:
 
 class Submission:
       ''' make prediction and results submission'''
-        pass22
+        pass
+
+```
+## Command Line Interface
+
+### Installation
+
+You can install the command-line tool using pip:
+
+```bash
+pip install package_name
+
 
 
