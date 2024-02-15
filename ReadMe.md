@@ -29,5 +29,4 @@ You can install the command-line tool using pip:
 pip install package_name
 ```
 
-add images:
-[Pictures](..%2F..%2FPictures)
+![](https://www.dreamstime.com/stock-photography-student-writing-school-desk-isolated-white-background-image36222372)
