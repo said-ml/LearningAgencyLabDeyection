@@ -1,0 +1,13 @@
+# Sample YAML configuration file
+project_name: Leaning Agency PII Data Detection
+version: 1.0
+description: This is a YAML configuration file for MyProject.
+author: Said Koussi
+dependencies:
+  - numpy
+  - pandas
+  - matplotlib
+  - transformers
+  - torch
+  - sklearn(optional)
+  - sqeval
